@@ -1,71 +1,62 @@
-use log::{error, info};
 use crate::{
-    dto::product::{
-        product_error::ProductError,
-        product_dto::AddProductRequest,
-    },
-    model::{
-        product::{self, Product},
-    },
-    service,
+    dto::product::product_dto::{AddProductRequest, AddProductResponse, ClientId, ProductId},
+    errors::app_error::{AppError, ErrorKind},
+    model::product::Product,
     server,
 };
 use actix_web::{
     get, post,
-    http::{header::ContentType, StatusCode},
-    web::{self, Json, Path, Data},
-    HttpResponse, ResponseError, Responder,
+    web::{self, Json, Path},
+    HttpResponse, Responder,
 };
-use derive_more::Display;
-use serde::{Deserialize, Serialize};
+use mongodb::bson::oid::ObjectId;
+use std::str::FromStr;
 
-#[derive(Deserialize, Serialize)]
-// struct to aid extractor in extracting the product id
-pub struct ProductId {
-    product_id: u32,
-}
-
-// endpoint to get a single product
+// get_product is the handler to get a single product
 #[get("/v1/products/{product_id}")]
-pub async fn get_product(p_id: Path<ProductId>) -> Result<Json<Product>, ProductError> {
-    info!("GET PRODUCT!!!");
-    // get the product_id from the path by casting it to a json i64
-    // let product_id = Json(p_id.into_inner().product_id);
-
-    // get the product from the service
-    // let prods = service::product_service::get_product(*product_id)?;
-
-    // match prods.first() {
-    //     Some(first) => Ok(Json(first.clone())),
-    //     None => Err(ProductError::ProductNotFound)
-    // }
-
-    todo!()
+pub async fn get_product(p_id: Path<ProductId>) -> impl Responder {
+    return AppError::new("UNIMPLEMENTED", ErrorKind::InternalServerError).to_responder();
 }
 
-#[post("/v1/products/")]
-pub async fn add_product(app_data: web::Data<server::AppState>, request: Json<AddProductRequest>) -> impl Responder {
-    info!("POST PRODUCT!!!");
+// add_product is the handler to add a product
+#[post("/v1/products/{client_id}")]
+pub async fn add_product(
+    request: Json<AddProductRequest>,
+    c_id: Path<ClientId>,
+    app_data: web::Data<server::AppState>,
+) -> impl Responder {
+    // validate the request body
+    if let Err(err) = request.validate() {
+        return err.to_responder();
+    }
+
+    // try converting the client_id from string to an objectId
+    let client_id = match ObjectId::from_str(c_id.into_inner().client_id.as_str()) {
+        Ok(client_id) => client_id,
+        Err(_) => {
+            return AppError::new("invalid client id", ErrorKind::FailedAction).to_responder()
+        }
+    };
 
     // build a new product object from the request
-    let product = Product::new(request.name.clone(), request.description.clone());
+    let mut product = Product::new(request.name.clone(), request.description.clone());
 
-    // call the product service to handle the getting of product
-    let result = app_data.service_manager.product_service.create(&product).await;
+    // call the product service to handle creating the product
+    if let Err(err) = app_data
+        .service_manager
+        .product_service
+        .create(&mut product, client_id, request.quantity)
+        .await
+    {
+        return err.to_responder();
+    };
 
-    // let result = web::block(move || action).await;
-
-    match result {
-        Ok(insert_one_result) => {
-            if let Some(oid) = insert_one_result.inserted_id.as_object_id() {
-                HttpResponse::Ok().json(oid.to_hex())
-            } else {
-                HttpResponse::InternalServerError().finish()
-            }
-        }
-        Err(e) => {
-            error!("Error while creating a product: {:?}", e);
-            HttpResponse::InternalServerError().finish()
-        }
-    }
+    // return the product
+    let response = AddProductResponse::new(
+        product._id.to_hex(),
+        product.name,
+        product.description,
+        request.quantity,
+    );
+    HttpResponse::Ok().json(response)
 }

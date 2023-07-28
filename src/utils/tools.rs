@@ -1,4 +1,4 @@
-use crate::errors::app_error::AppError;
+use crate::errors::app_error::{AppError, ErrorKind};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 
@@ -6,10 +6,8 @@ use rand::{thread_rng, Rng};
 pub fn generate_random_alphanum(size: usize) -> Result<String, AppError> {
     const RAND_SIZE: usize = 30;
     if size > RAND_SIZE {
-        return Err(AppError::new(format!(
-            "size must not be greater than {}",
-            RAND_SIZE
-        )));
+        let err_msg = format!("size must not be greater than {}", RAND_SIZE);
+        return Err(AppError::new(&err_msg, ErrorKind::InternalServerError));
     }
 
     // generate random string with size from thread_rng

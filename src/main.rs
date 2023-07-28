@@ -1,15 +1,12 @@
 mod api;
+mod dto;
 mod errors;
 mod model;
 mod repository;
 mod server;
 mod service;
 mod utils;
-mod dto;
 
-use api::product_router::get_product;
-
-use actix_web::{middleware::Logger, web::Data, App, HttpServer};
 use dotenv::dotenv;
 use log::info;
 use mongodb::{options::ClientOptions, Client};

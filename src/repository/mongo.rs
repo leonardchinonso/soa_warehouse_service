@@ -1,5 +1,4 @@
-use dotenv::dotenv;
-use mongodb::{options::ClientOptions, Client, Database};
+use mongodb::{Client, Database};
 use std::env;
 
 pub fn establish_connection(client: &Client) -> Database {
