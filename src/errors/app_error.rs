@@ -10,16 +10,24 @@ pub enum ErrorKind {
     FailedAction,
 }
 
-#[derive(Debug, Serialize)]
 // AppError is a custom warehouse application error
+#[derive(Debug, Serialize)]
 pub struct AppError {
+    pub status_code: i32,
     pub message: String,
     pub kind: ErrorKind,
 }
 
 impl AppError {
     pub fn new(msg: &str, err_kind: ErrorKind) -> Self {
+        let status_code = match err_kind {
+            ErrorKind::FailedAction => 400,
+            ErrorKind::NotFound => 404,
+            ErrorKind::InternalServerError => 500,
+        };
+
         Self {
+            status_code,
             message: msg.to_string(),
             kind: err_kind,
         }
