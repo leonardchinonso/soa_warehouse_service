@@ -280,6 +280,7 @@ pub async fn check_availability(
     ))
 }
 
+// delete_product deletes a product and its stock from the application
 #[delete("/v1/{client_id}/products/{product_id}")]
 pub async fn delete_product(
     app_data: web::Data<server::AppState>,

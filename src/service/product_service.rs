@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use bson::oid::ObjectId;
 use futures::future;
 use log::error;
@@ -267,7 +268,9 @@ impl ProductService {
         // create a vector of orders to process
         let mut orders: Vec<Order> = Vec::with_capacity(order_requests.len());
 
-        // convert all product ids to objectIds
+        let mut seen_orders = HashSet::new();
+
+        // convert all product ids to objectIds and check for duplicity
         for order_request in order_requests {
             let mut order = Order::new();
             order.product_id = match ObjectId::from_str(order_request.product_id.as_str()) {
@@ -279,8 +282,16 @@ impl ProductService {
                     ))
                 }
             };
+
+            // check if the order has been seen before
+            if seen_orders.contains(&order.product_id) {
+                return Err(AppError::new(&format!("duplicate order with product_id: {:?}", order.product_id), ErrorKind::FailedAction))
+            }
+
             // set the quantity of the order
             order.quantity = order_request.quantity;
+            // add the order's product_id to the set
+            seen_orders.insert(order.product_id.clone());
             // add the created order to the list of orders
             orders.push(order);
         }
