@@ -1,0 +1,14 @@
+version: '1'
+services:
+  api:
+    image: leonardchinonso/soa-warehouse-service
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+  db:
+    image: mongo
+    restart: always
+    ports:
+      - "27017:27017"
