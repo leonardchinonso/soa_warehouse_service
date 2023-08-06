@@ -1,7 +1,7 @@
-use std::collections::HashSet;
 use bson::oid::ObjectId;
 use futures::future;
 use log::error;
+use std::collections::HashSet;
 use std::str::FromStr;
 
 use crate::{
@@ -285,7 +285,10 @@ impl ProductService {
 
             // check if the order has been seen before
             if seen_orders.contains(&order.product_id) {
-                return Err(AppError::new(&format!("duplicate order with product_id: {:?}", order.product_id), ErrorKind::FailedAction))
+                return Err(AppError::new(
+                    &format!("duplicate order with product_id: {:?}", order.product_id),
+                    ErrorKind::FailedAction,
+                ));
             }
 
             // set the quantity of the order
