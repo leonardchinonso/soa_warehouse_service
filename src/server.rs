@@ -50,7 +50,7 @@ pub async fn start_server(database: Database) -> Result<(), std::io::Error> {
         // get the handle for the service manager
         let service_manager = ServiceManager::new(&database);
 
-        // initialize cors for the resource gatekeeping
+        // initialize cors for the resource gate keeping
         let _cors_middleware = Cors::default()
             .allowed_methods(vec!["GET", "POST", "DELETE", "PUT"])
             .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
