@@ -1,7 +1,7 @@
 use crate::{
     dto::product::product_dto::{
         AddProductRequest, AddProductResponse, CheckAvailabilityRequest, ClientId,
-        ClientIdProductId, GetProductResponse, GetProductsResponse, ProcessOrderRequest,
+        ClientIdProductId, GetProductResponse, GetProductsResponse, ProductQuantityRequest,
         SetProductQuantityRequest, SetProductQuantityResponse, UpdateProductRequest,
         UpdateProductResponse,
     },
@@ -232,7 +232,7 @@ pub async fn set_product_quantity(
     ))
 }
 
-// check_availability checks the quantity availability of products in a stock
+// check_availability checks the quantity availability of one product in the stock
 #[get("/v1/{client_id}/products/{product_id}/availability")]
 pub async fn check_availability(
     app_data: web::Data<server::AppState>,
@@ -280,6 +280,44 @@ pub async fn check_availability(
     ))
 }
 
+// check_multiple_availability checks the quantity availability of multiple products in the stock
+#[post("/v1/{client_id}/products/availability")]
+pub async fn check_multiple_availability(
+    app_data: web::Data<server::AppState>,
+    request: Json<Vec<ProductQuantityRequest>>,
+    c_id: Path<ClientId>,
+) -> impl Responder {
+    // validate the client id
+    let client_id = match ObjectId::from_str(c_id.into_inner().client_id.as_str()) {
+        Ok(client_id) => client_id,
+        Err(_) => {
+            return AppError::new("invalid client id", ErrorKind::FailedAction).to_responder()
+        }
+    };
+
+    if let Err(err) = app_data
+        .service_manager
+        .product_service
+        .check_multiple_availability(client_id, request.into_inner())
+        .await
+    {
+        return match err.kind {
+            ErrorKind::FailedAction => err.to_responder(),
+            ErrorKind::NotFound => err.to_responder(),
+            _ => {
+                error!("Error checking availability");
+                AppError::new("cannot check availability", ErrorKind::InternalServerError)
+                    .to_responder()
+            }
+        };
+    }
+
+    HttpResponse::Ok().json(APIResponse::success(
+        "all products are available in their requested number",
+        None::<String>,
+    ))
+}
+
 // delete_product deletes a product and its stock from the application
 #[delete("/v1/{client_id}/products/{product_id}")]
 pub async fn delete_product(
@@ -323,7 +361,7 @@ pub async fn delete_product(
 // process_orders processes orders by decrementing their product quantity by the specified quantity
 #[post("/v1/{client_id}/orders")]
 pub async fn process_orders(
-    request: Json<Vec<ProcessOrderRequest>>,
+    request: Json<Vec<ProductQuantityRequest>>,
     c_id: Path<ClientId>,
     app_data: web::Data<server::AppState>,
 ) -> impl Responder {
