@@ -1,14 +1,12 @@
-version: '1'
+version: '3'
 services:
   api:
-    image: leonardchinonso/soa-warehouse-service
-    build: .
+    container_name: soa_warehouse_service
+#    image: leonardchinonso/soa-warehouse-service # use this only when referencing an already built image or image available on docker hub repository
+    build: # Use build in place of image option
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
-    depends_on:
-      - db
-  db:
-    image: mongo
-    restart: always
-    ports:
-      - "27017:27017"
+    env_file:
+      - .env
