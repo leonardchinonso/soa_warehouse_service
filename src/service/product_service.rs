@@ -6,7 +6,7 @@ use std::str::FromStr;
 
 use crate::{
     dto::product::product_dto::{
-        Order, ProcessOrderRequest, SetProductQuantityRequest, UpdateProductRequest,
+        ProductQuantity, ProductQuantityRequest, SetProductQuantityRequest, UpdateProductRequest,
     },
     errors::app_error::{AppError, ErrorKind},
     model::{product::Product, stock::Stock},
@@ -222,6 +222,28 @@ impl ProductService {
         Ok(())
     }
 
+    // check_multiple_availability checks multiple products have their required number in the stock
+    pub async fn check_multiple_availability(
+        &self,
+        client_id: ObjectId,
+        check_requests: Vec<ProductQuantityRequest>,
+    ) -> Result<(), AppError> {
+        // create a vector of checks to process
+        let pq_vec = match self.check_products_and_convert_to_product_quantity_vector(
+            check_requests
+        ).await {
+            Ok(orders) => orders,
+            Err(err) => return Err(err),
+        };
+
+        // if any product is not available in quantity, return an error
+        if let Err(err) = self.check_availability_many(client_id, &pq_vec).await {
+            return Err(err);
+        }
+
+        Ok(())
+    }
+
     // delete_product deletes a product and its stock from the database
     pub async fn delete_product(
         &self,
@@ -263,55 +285,18 @@ impl ProductService {
     pub async fn process_orders(
         &self,
         client_id: ObjectId,
-        order_requests: Vec<ProcessOrderRequest>,
+        order_requests: Vec<ProductQuantityRequest>,
     ) -> Result<(), AppError> {
         // create a vector of orders to process
-        let mut orders: Vec<Order> = Vec::with_capacity(order_requests.len());
+        let orders = match self.check_products_and_convert_to_product_quantity_vector(
+            order_requests
+        ).await {
+            Ok(orders) => orders,
+            Err(err) => return Err(err),
+        };
 
-        let mut seen_orders = HashSet::new();
-
-        // convert all product ids to objectIds and check for duplicity
-        for order_request in order_requests {
-            let mut order = Order::new();
-            order.product_id = match ObjectId::from_str(order_request.product_id.as_str()) {
-                Ok(product_id) => product_id,
-                Err(_) => {
-                    return Err(AppError::new(
-                        &format!("invalid product id: {:?}", order_request.product_id),
-                        ErrorKind::FailedAction,
-                    ))
-                }
-            };
-
-            // check if the order has been seen before
-            if seen_orders.contains(&order.product_id) {
-                return Err(AppError::new(
-                    &format!("duplicate order with product_id: {:?}", order.product_id),
-                    ErrorKind::FailedAction,
-                ));
-            }
-
-            // set the quantity of the order
-            order.quantity = order_request.quantity;
-            // add the order's product_id to the set
-            seen_orders.insert(order.product_id.clone());
-            // add the created order to the list of orders
-            orders.push(order);
-        }
-
-        // create an empty list of unresolved futures for checking the availability of all orders
-        let mut check_availability_futs = Vec::with_capacity(orders.len());
-        // verify all products in the list have quantities requested, return error if a product is unavailable
-        for order in &orders {
-            // push the asynchronous call to the list of unresolved futures
-            check_availability_futs.push(self.check_availability(
-                client_id,
-                order.product_id,
-                order.quantity,
-            ));
-        }
-        // ensure the products in the orders are all available
-        if let Err(err) = future::try_join_all(check_availability_futs).await {
+        // if any product is not available in quantity, return an error
+        if let Err(err) = self.check_availability_many(client_id, &orders).await {
             return Err(err);
         }
 
@@ -364,6 +349,67 @@ impl ProductService {
                 ));
             }
         }
+    }
+
+    async fn check_products_and_convert_to_product_quantity_vector(
+        &self,
+        pq_requests: Vec<ProductQuantityRequest>,
+    ) -> Result<Vec<ProductQuantity>, AppError> {
+        // create a vector of checks to process
+        let mut pq_vec: Vec<ProductQuantity> = Vec::with_capacity(pq_requests.len());
+
+        let mut seen_checks = HashSet::new();
+
+        // convert all product ids to objectIds and check for duplicity
+        for pq_request in pq_requests {
+            let mut pq = ProductQuantity::new();
+            pq.product_id = match ObjectId::from_str(pq_request.product_id.as_str()) {
+                Ok(product_id) => product_id,
+                Err(_) => {
+                    return Err(AppError::new(
+                        &format!("invalid product id: {:?}", pq_request.product_id),
+                        ErrorKind::FailedAction,
+                    ))
+                }
+            };
+
+            // check if the order has been seen before
+            if seen_checks.contains(&pq.product_id) {
+                return Err(AppError::new(
+                    &format!("duplicate order with product_id: {:?}", pq.product_id),
+                    ErrorKind::FailedAction,
+                ));
+            }
+
+            // set the quantity of the order
+            pq.quantity = pq_request.quantity;
+            // add the order's product_id to the set
+            seen_checks.insert(pq.product_id.clone());
+            // add the created order to the list of orders
+            pq_vec.push(pq);
+        }
+
+        Ok(pq_vec)
+    }
+
+    async fn check_availability_many(&self, client_id: ObjectId, checks: &Vec<ProductQuantity>) -> Result<(), AppError> {
+        // create an empty list of unresolved futures for checking the availability of all orders
+        let mut check_availability_futs = Vec::with_capacity(checks.len());
+        // verify all products in the list have quantities requested, return error if a product is unavailable
+        for check in checks {
+            // push the asynchronous call to the list of unresolved futures
+            check_availability_futs.push(self.check_availability(
+                client_id,
+                check.product_id,
+                check.quantity,
+            ));
+        }
+        // ensure the products in the orders are all available
+        if let Err(err) = future::try_join_all(check_availability_futs).await {
+            return Err(err);
+        }
+
+        Ok(())
     }
 
     // decrement_quantity_by decrements the quantity of a product in the stock by the given number

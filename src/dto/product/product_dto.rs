@@ -151,20 +151,21 @@ pub struct CheckAvailabilityRequest {
     pub number: i32,
 }
 
-// ProcessOrdersRequest represents the request body for processing an order
+// ProductQuantityRequest represents the request body for processing an order
+// and checking the availability of multiple products
 #[derive(Debug, Deserialize)]
-pub struct ProcessOrderRequest {
+pub struct ProductQuantityRequest {
     pub product_id: String,
     pub quantity: i32,
 }
 
 /// Data Transfer Objects not involving API requests
-pub struct Order {
+pub struct ProductQuantity {
     pub product_id: ObjectId,
     pub quantity: i32,
 }
 
-impl Order {
+impl ProductQuantity {
     pub fn new() -> Self {
         Self {
             product_id: ObjectId::new(),

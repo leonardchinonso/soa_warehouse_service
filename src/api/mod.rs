@@ -11,6 +11,7 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(product_router::update_product);
     cfg.service(product_router::set_product_quantity);
     cfg.service(product_router::check_availability);
+    cfg.service(product_router::check_multiple_availability);
     cfg.service(product_router::delete_product);
     cfg.service(product_router::process_orders);
 }
