@@ -24,8 +24,8 @@ impl ProductRepo {
     // get_by_id retrieves a product from the database by id
     pub async fn get_by_id(
         &self,
-        product_id: ObjectId,
         client_id: ObjectId,
+        product_id: ObjectId,
     ) -> Result<Option<Product>, Error> {
         let product = self
             .collection

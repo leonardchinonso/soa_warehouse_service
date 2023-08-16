@@ -1,5 +1,6 @@
 use bson::doc;
 use bson::oid::ObjectId;
+use futures::stream::TryStreamExt;
 use mongodb::results::{DeleteResult, UpdateResult};
 use mongodb::{error::Error, error::Result as MongoResult, results::InsertOneResult, Collection};
 
@@ -35,6 +36,18 @@ impl StockRepo {
             )
             .await?;
         Ok(stock_result)
+    }
+
+    // get_by_client_id_and_product_ids gets stocks from the database by
+    // the client id and a list of product ids
+    pub async fn get_by_client_id(
+        &self,
+        client_id: ObjectId,
+    ) -> Result<Vec<Stock>, Error> {
+        let filter = doc! {"client_id": client_id};
+        let cursor = self.collection.find(filter, None).await?;
+        let stocks: Vec<Stock> = cursor.try_collect().await?;
+        Ok(stocks)
     }
 
     // update updates the stock in the database
