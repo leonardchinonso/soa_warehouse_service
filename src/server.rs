@@ -63,7 +63,7 @@ pub async fn start_server(database: Database) -> Result<(), std::io::Error> {
             .app_data(web::Data::new(AppState::new(service_manager)))
             .configure(api::init)
     })
-    .bind(("127.0.0.1", 8000))?
+    .bind(("0.0.0.0", 8000))?
     .run()
     .await
 }
