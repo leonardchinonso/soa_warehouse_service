@@ -1,13 +1,13 @@
 use crate::{
     dto::product::product_dto::{
         AddProductRequest, AddProductResponse, CheckAvailabilityRequest, ClientId,
-        ClientIdProductId, GetProductResponse, GetProductsResponse, ProductQuantityRequest,
+        ClientIdProductId, GetProductResponse, ProductQuantityRequest,
         SetProductQuantityRequest, SetProductQuantityResponse, UpdateProductRequest,
         UpdateProductResponse,
     },
     dto::APIResponse,
     errors::app_error::{AppError, ErrorKind},
-    model::product::{Product, ProductResponse},
+    model::product::Product,
     server,
 };
 use actix_web::{
@@ -18,6 +18,8 @@ use actix_web::{
 use log::error;
 use mongodb::bson::oid::ObjectId;
 use std::str::FromStr;
+use crate::dto::product::product_dto::GetProductsQuantityResponse;
+use crate::model::product::ProductQuantityResponse;
 
 // get_product is the handler to get a single product
 #[get("/v1/{client_id}/products/{product_id}")]
@@ -43,21 +45,21 @@ pub async fn get_product(
         }
     };
 
-    // retrieve the product from the service
-    let product = match app_data
+    // retrieve the product and quantity from the service
+    let product_qty = match app_data
         .service_manager
         .product_service
         .get_product(product_id, client_id)
         .await
     {
-        Ok(product) => product,
+        Ok(product_qty) => product_qty,
         Err(err) => return err.to_responder(),
     };
 
-    // return the product
+    // return the product and quantity
     HttpResponse::Ok().json(APIResponse::success(
         "product retrieved successfully",
-        GetProductResponse::new(product._id.to_hex(), product.name, product.description),
+        GetProductResponse::new(product_qty.0._id.to_hex(), product_qty.0.name, product_qty.0.description, product_qty.1),
     ))
 }
 
@@ -76,23 +78,23 @@ pub async fn get_products_by_client(
     };
 
     // retrieve the products from the service
-    let products = match app_data
+    let products_with_qty = match app_data
         .service_manager
         .product_service
-        .get_products(client_id)
+        .get_products_by_client(client_id)
         .await
     {
-        Ok(products) => products
+        Ok(products_tup) => products_tup
             .iter()
-            .map(|p| p.to_product_response())
-            .collect::<Vec<ProductResponse>>(),
+            .map(|p| p.0.to_product_quantity_response(p.1))
+            .collect::<Vec<ProductQuantityResponse>>(),
         Err(err) => return err.to_responder(),
     };
 
     // return the products
     HttpResponse::Ok().json(APIResponse::success(
         "products retrieved successfully",
-        GetProductsResponse::new(products),
+        GetProductsQuantityResponse::new(products_with_qty),
     ))
 }
 

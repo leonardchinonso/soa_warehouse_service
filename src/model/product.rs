@@ -13,13 +13,14 @@ pub struct Product {
     created_by: ObjectId,
 }
 
-// Product is the model for products
+// ProductQuantityResponse is the response body for getting a product with its quantity
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ProductResponse {
-    pub _id: String,
+pub struct ProductQuantityResponse {
+    pub id: String,
     pub name: String,
     pub description: String,
     sku: String,
+    pub quantity: i32,
 }
 
 impl Product {
@@ -46,12 +47,14 @@ impl Product {
         self.sku.clone()
     }
 
-    pub fn to_product_response(&self) -> ProductResponse {
-        ProductResponse {
-            _id: self._id.to_hex(),
+    // to_product_quantity_response converts a product to a ProductQuantityResponse
+    pub fn to_product_quantity_response(&self, quantity: i32) -> ProductQuantityResponse {
+        ProductQuantityResponse {
+            id: self._id.to_hex(),
             name: self.name.clone(),
             description: self.description.clone(),
             sku: self.sku.clone(),
+            quantity,
         }
     }
 }

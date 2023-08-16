@@ -1,7 +1,7 @@
 use bson::oid::ObjectId;
 use futures::future;
 use log::error;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 
 use crate::{
@@ -72,29 +72,45 @@ impl ProductService {
         Ok(())
     }
 
-    // get_product gets a product from the application storage
+    // get_product gets a product and its quantity from the application storage
     pub async fn get_product(
         &self,
         product_id: ObjectId,
         client_id: ObjectId,
-    ) -> Result<Product, AppError> {
-        match self.product_repo.get_by_id(product_id, client_id).await {
-            Ok(Some(product)) => Ok(product),
-            Ok(None) => Err(AppError::new("product not found", ErrorKind::NotFound)),
+    ) -> Result<(Product, i32), AppError> {
+        let product = match self.product_repo.get_by_id(client_id, product_id).await {
+            Ok(Some(product)) => product,
+            Ok(None) => return Err(AppError::new("product not found", ErrorKind::NotFound)),
             Err(err) => {
                 error!("Error fetching a product: {:?}", err);
-                Err(AppError::new(
+                return Err(AppError::new(
                     "cannot fetch product",
                     ErrorKind::InternalServerError,
                 ))
             }
-        }
+        };
+
+        let stock = match self.stock_repo.get_by_client_id_and_product_id(client_id, product_id).await {
+            Ok(Some(stock)) => stock,
+            Ok(None) => return Err(AppError::new("stock not found", ErrorKind::NotFound)),
+            Err(err) => {
+                error!("Error fetching a stock: {:?}", err);
+                return Err(AppError::new(
+                    "cannot fetch stock",
+                    ErrorKind::InternalServerError,
+                ))
+            }
+        };
+
+        Ok((product, stock.get_quantity()))
     }
 
     // get_products gets products from the application storage
-    pub async fn get_products(&self, client_id: ObjectId) -> Result<Vec<Product>, AppError> {
-        match self.product_repo.get_by_client_id(client_id).await {
-            Ok(products) => Ok(products),
+    pub async fn get_products_by_client(&self, client_id: ObjectId) -> Result<Vec<(Product, i32)>, AppError> {
+        let mut pq_hashmap: HashMap<ObjectId, (Product, i32)> = HashMap::new();
+
+        let products = match self.product_repo.get_by_client_id(client_id).await {
+            Ok(products) => products,
             Err(err) => {
                 error!("Error fetching all products: {:?}", err);
                 return Err(AppError::new(
@@ -102,7 +118,37 @@ impl ProductService {
                     ErrorKind::InternalServerError,
                 ));
             }
+        };
+
+        // insert the products in the hashmap
+        for product in products {
+            pq_hashmap.insert(product._id, (product, 0));
         }
+
+        let stocks = match self.stock_repo.get_by_client_id(client_id).await {
+            Ok(stocks) => stocks,
+            Err(err) => {
+                error!("Error fetching all stocks: {:?}", err);
+                return Err(AppError::new(
+                    "cannot fetch stocks",
+                    ErrorKind::InternalServerError,
+                ));
+            }
+        };
+
+        for stock in stocks {
+            pq_hashmap
+                .get_mut(&stock.product_id)
+                .map(|pq| pq.1 = stock.get_quantity());
+        }
+
+        let mut pq_vec: Vec<(Product, i32)> = Vec::with_capacity(pq_hashmap.len());
+
+        for (_, pq) in pq_hashmap {
+            pq_vec.push(pq);
+        }
+
+        Ok(pq_vec)
     }
 
     // update_product updates a product in the application storage
@@ -113,7 +159,7 @@ impl ProductService {
         update: &UpdateProductRequest,
     ) -> Result<Product, AppError> {
         // retrieve the product from the service
-        let mut product = self.get_product(product_id, client_id).await?;
+        let mut product = self.get_product(product_id, client_id).await?.0;
 
         // update the fields in the product
         product.name = update.name.clone();

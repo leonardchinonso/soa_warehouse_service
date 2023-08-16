@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::app_error::{AppError, ErrorKind},
-    model::product::ProductResponse,
+    model::product::ProductQuantityResponse,
 };
 
 #[derive(Deserialize, Serialize)]
@@ -74,28 +74,30 @@ pub struct GetProductResponse {
     pub id: String,
     pub name: String,
     pub description: String,
+    pub quantity: i32,
 }
 
 impl GetProductResponse {
-    pub fn new(id: String, name: String, description: String) -> Self {
+    pub fn new(id: String, name: String, description: String, quantity: i32) -> Self {
         Self {
             id,
             name,
             description,
+            quantity,
         }
     }
 }
 
-// GetProductsResponse represents the request body for getting all products
+// GetProductsQuantityResponse represents the request body for getting all products
 #[derive(Serialize)]
-pub struct GetProductsResponse {
-    pub products: Vec<ProductResponse>,
+pub struct GetProductsQuantityResponse {
+    pub products_quantity: Vec<ProductQuantityResponse>,
 }
 
 // GetProductsResponse represents the response body for retrieving a product
-impl GetProductsResponse {
-    pub fn new(products: Vec<ProductResponse>) -> Self {
-        Self { products }
+impl GetProductsQuantityResponse {
+    pub fn new(pq: Vec<ProductQuantityResponse>) -> Self {
+        Self { products_quantity: pq }
     }
 }
 
