@@ -1,4 +1,3 @@
-#FROM rust:alpine3.17 as builder
 FROM rust:1.71 as builder
 
 WORKDIR /soa_warehouse_service

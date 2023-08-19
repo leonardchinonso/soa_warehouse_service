@@ -211,20 +211,23 @@ impl ProductService {
             .await?;
 
         // compare the current quantity with the quantity to set, must be lower
-        if update.quantity < stock.get_quantity() {
-            return Err(AppError::new(
-                "quantity to set must be more than current quantity",
-                ErrorKind::FailedAction,
-            ));
-        }
+        // if update.quantity < stock.get_quantity() {
+        //     return Err(AppError::new(
+        //         "quantity to set must be more than current quantity",
+        //         ErrorKind::FailedAction,
+        //     ));
+        // }
+
+
 
         // if the quantities are equal, no need to update
-        if update.quantity == stock.get_quantity() {
-            return Ok(stock);
-        }
+        // if update.quantity == stock.get_quantity() {
+        //     return Ok(stock);
+        // }
+        let newQuantity = update.quantity + stock.get_quantity();
 
         // set the quantity in the stock object
-        stock.set_quantity(update.quantity);
+        stock.set_quantity(newQuantity);
         // update the quantity in the stock
         let modified_count = match self.stock_repo.update(&stock).await {
             Ok(result) => result.modified_count,
