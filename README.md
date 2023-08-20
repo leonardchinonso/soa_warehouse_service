@@ -5,21 +5,13 @@ There are two ways to run this project. You can run it locally or using docker.
 Docker is the preferred option because the service runs in an isolated and controlled environment.
 
 # Using Docker (Recommended)
-To build docker image:
-
-[comment]: <> (Run docker buildx build --platform linux/amd64,linux/arm64 -t alaooluwatobi/soa_warehouse_service:latest --push .)
-
-# Run
-## docker build -t alaooluwatobi/soa_wh_service:latest .
-## docker push alaooluwatobi/soa_wh_service:latest
-
 Navigate to the root of the project by entering the following command
 ```shell
 $ cd $PROJECT_PATH
 ```
 Build the docker image, and run the container with:
 ```shell
-$ docker build
+$ docker build .
 $ docker run
 ```
 
