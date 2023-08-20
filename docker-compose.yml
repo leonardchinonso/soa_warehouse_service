@@ -2,7 +2,7 @@ version: '3'
 services:
   api:
     container_name: soa_warehouse_service
-#    image: leonardchinonso/soa-warehouse-service # use this only when referencing an already built image or image available on docker hub repository
+    image: alaooluwatobi/soa_wh_service:latest
     build: # Use build in place of image option
       context: .
       dockerfile: Dockerfile
